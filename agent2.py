@@ -1,4 +1,5 @@
 
+import json
 from typing import Annotated, TypedDict
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
@@ -19,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -26,7 +28,7 @@ class AgentState(TypedDict):
 tools = [list_events, create_event, check_availability, get_current_date]
 
 g = StateGraph(AgentState)
-llm = init_chat_model(model="google_genai:gemini-2.0-flash", temperature=0)
+llm = init_chat_model(model="google_genai:gemini-2.0-flash", temperature=0.4)
 tool_node = ToolNode(tools=tools)
 llm_bind_tools = llm.bind_tools(tools)
 

@@ -1,8 +1,26 @@
 import datetime
+import json
 import logging
 from langchain_core.tools import tool
-
 from google_api import createService
+import streamlit as st
+credentials = {
+    "web": {
+        "client_id": st.secrets["google_oauth"]["client_id"],
+        "project_id": st.secrets["google_oauth"]["project_id"],
+        "auth_uri": st.secrets["google_oauth"]["auth_uri"],
+        "token_uri": st.secrets["google_oauth"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["google_oauth"][
+            "auth_provider_x509_cert_url"
+        ],
+        "client_secret": st.secrets["google_oauth"]["client_secret"],
+    }
+}
+
+
+with open("credentials.json", "w") as f:
+    json.dump(credentials, f)
+
 
 
 def google_Calendar_client(client_secret):
@@ -11,6 +29,9 @@ def google_Calendar_client(client_secret):
     SCOPES = ["https://www.googleapis.com/auth/calendar"]
     service = createService(client_secret, API_NAME, API_VERSION, SCOPES)
     return service
+
+
+calendar_service = google_Calendar_client("credentials.json")
 
 
 @tool
@@ -27,7 +48,6 @@ def list_events(num: int = 5):
             - 'start' (str): The event’s start datetime in ISO 8601 format.
     """
 
-    calendar_service = google_Calendar_client("credentials.json")
     now = datetime.datetime.utcnow().isoformat() + "Z"
     events = (
         calendar_service.events()
@@ -61,16 +81,12 @@ def check_availability(date: str, time: str):
     """
     from datetime import datetime, timedelta
 
-    
     datetime_str = f"{date} {time}"
     target_datetime = datetime.strptime(datetime_str, "%B %d, %Y %I:%M %p")
 
     # Prepare start and end times in ISO 8601 format
     start_time = target_datetime.isoformat() + "Z"
     end_time = (target_datetime + timedelta(hours=1)).isoformat() + "Z"
-
-
-    calendar_service = google_Calendar_client("credentials.json")
 
     # Query events within the specified time range
     events_result = (
@@ -86,7 +102,6 @@ def check_availability(date: str, time: str):
     )
 
     events = events_result.get("items", [])
-
 
     if events:
         event_details = [
@@ -121,11 +136,11 @@ def create_event(summary: str, start: str, end: str):
         end (str): Event end time in ISO 8601 datetime format can be Optional.
 
     Returns:
-        str: A link to the created event in Google Calendar, or a confirmation message."""
+        str: A link to the created event in Google Calendar, or a confirmation message.
+    """
 
-    calendar_service = google_Calendar_client("credentials.json")
-    settings = calendar_service.settings().get(setting='timezone').execute()
-    timezone = settings.get('value', 'UTC')
+    settings = calendar_service.settings().get(setting="timezone").execute()
+    timezone = settings.get("value", "UTC")
     ev = {
         "summary": summary,
         "start": {"dateTime": start, "timeZone": timezone},
