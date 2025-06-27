@@ -1,7 +1,28 @@
+import json
+import os
 import streamlit as st
 from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
 from langchain_core.messages import HumanMessage, AIMessage
 from agent2 import agent_graph
+
+credentials = {
+    "web": {
+        "client_id": st.secrets["google_oauth"]["client_id"],
+        "project_id": st.secrets["google_oauth"]["project_id"],
+        "auth_uri": st.secrets["google_oauth"]["auth_uri"],
+        "token_uri": st.secrets["google_oauth"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["google_oauth"][
+            "auth_provider_x509_cert_url"
+        ],
+        "client_secret": st.secrets["google_oauth"]["client_secret"],
+    }
+}
+
+# Check if credentials.json exists
+if not os.path.exists("credentials.json"):
+    # If it doesn't exist, create and write to the file
+    with open("credentials.json", "w") as f:
+        json.dump(credentials, f)
 
 # Title of the app
 st.title("🤖 Google Calendar Assistant")

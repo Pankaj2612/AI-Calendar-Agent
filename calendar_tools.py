@@ -1,25 +1,8 @@
 import datetime
-import json
 import logging
 from langchain_core.tools import tool
 from google_api import createService
-import streamlit as st
-credentials = {
-    "web": {
-        "client_id": st.secrets["google_oauth"]["client_id"],
-        "project_id": st.secrets["google_oauth"]["project_id"],
-        "auth_uri": st.secrets["google_oauth"]["auth_uri"],
-        "token_uri": st.secrets["google_oauth"]["token_uri"],
-        "auth_provider_x509_cert_url": st.secrets["google_oauth"][
-            "auth_provider_x509_cert_url"
-        ],
-        "client_secret": st.secrets["google_oauth"]["client_secret"],
-    }
-}
 
-
-with open("credentials.json", "w") as f:
-    json.dump(credentials, f)
 
 
 
@@ -31,7 +14,7 @@ def google_Calendar_client(client_secret):
     return service
 
 
-calendar_service = google_Calendar_client("credentials.json")
+
 
 
 @tool
@@ -47,25 +30,29 @@ def list_events(num: int = 5):
             - 'summary' (str): The event’s title (empty string if none).
             - 'start' (str): The event’s start datetime in ISO 8601 format.
     """
-
-    now = datetime.datetime.utcnow().isoformat() + "Z"
-    events = (
-        calendar_service.events()
-        .list(
-            calendarId="primary",
-            timeMin=now,
-            maxResults=num,
-            singleEvents=True,
-            orderBy="startTime",
+    try:
+        calendar_service = google_Calendar_client("credentials.json")
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+        events = (
+            calendar_service.events()
+            .list(
+                calendarId="primary",
+                timeMin=now,
+                maxResults=num,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+            .get("items", [])
         )
-        .execute()
-        .get("items", [])
-    )
-    logging.info(events)
-    return [
-        {"summary": e.get("summary", ""), "start": e["start"].get("dateTime")}
-        for e in events
-    ]
+        logging.info(events)
+        return [
+            {"summary": e.get("summary", ""), "start": e["start"].get("dateTime")}
+            for e in events
+        ]
+    except Exception as e:
+        logging.error(f"Error fetching events: {e}")
+        return []
 
 
 @tool
@@ -80,39 +67,43 @@ def check_availability(date: str, time: str):
         str: A message indicating whether the user is free or busy at the given time.
     """
     from datetime import datetime, timedelta
+    try:
+        calendar_service = google_Calendar_client("credentials.json")
+        datetime_str = f"{date} {time}"
+        target_datetime = datetime.strptime(datetime_str, "%B %d, %Y %I:%M %p")
 
-    datetime_str = f"{date} {time}"
-    target_datetime = datetime.strptime(datetime_str, "%B %d, %Y %I:%M %p")
+        # Prepare start and end times in ISO 8601 format
+        start_time = target_datetime.isoformat() + "Z"
+        end_time = (target_datetime + timedelta(hours=1)).isoformat() + "Z"
 
-    # Prepare start and end times in ISO 8601 format
-    start_time = target_datetime.isoformat() + "Z"
-    end_time = (target_datetime + timedelta(hours=1)).isoformat() + "Z"
-
-    # Query events within the specified time range
-    events_result = (
-        calendar_service.events()
-        .list(
-            calendarId="primary",
-            timeMin=start_time,
-            timeMax=end_time,
-            singleEvents=True,
-            orderBy="startTime",
+        # Query events within the specified time range
+        events_result = (
+            calendar_service.events()
+            .list(
+                calendarId="primary",
+                timeMin=start_time,
+                timeMax=end_time,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
         )
-        .execute()
-    )
 
-    events = events_result.get("items", [])
+        events = events_result.get("items", [])
 
-    if events:
-        event_details = [
-            f"- {event.get('summary', 'No Title')} from {event['start'].get('dateTime', 'Unknown')} to {event['end'].get('dateTime', 'Unknown')}"
-            for event in events
-        ]
-        return f"You are busy during this time. Here are your events:\n" + "\n".join(
-            event_details
-        )
-    else:
-        return "You are free during this time."
+        if events:
+            event_details = [
+                f"- {event.get('summary', 'No Title')} from {event['start'].get('dateTime', 'Unknown')} to {event['end'].get('dateTime', 'Unknown')}"
+                for event in events
+            ]
+            return f"You are busy during this time. Here are your events:\n" + "\n".join(
+                event_details
+            )
+        else:
+            return "You are free during this time."
+    except Exception as e:
+        logging.error(f"Error checking availability: {e}")
+        return f"Sorry, I couldn't check your availability due to an error: {e}"
 
 
 @tool
@@ -138,13 +129,19 @@ def create_event(summary: str, start: str, end: str):
     Returns:
         str: A link to the created event in Google Calendar, or a confirmation message.
     """
+    try:
+        calendar_service = google_Calendar_client("credentials.json")
+        settings = calendar_service.settings().get(setting="timezone").execute()
+        timezone = settings.get("value", "UTC")
+        ev = {
+            "summary": summary,
+            "start": {"dateTime": start, "timeZone": timezone},
+            "end": {"dateTime": end, "timeZone": timezone},
+        }
+        created = calendar_service.events().insert(calendarId="primary", body=ev).execute()
+        return created.get("htmlLink", "✅ Event created")
+    except Exception as e:
+        logging.error(f"Error creating event: {e}")
+        return f"Sorry, I couldn't create the event due to an error: {e}"
 
-    settings = calendar_service.settings().get(setting="timezone").execute()
-    timezone = settings.get("value", "UTC")
-    ev = {
-        "summary": summary,
-        "start": {"dateTime": start, "timeZone": timezone},
-        "end": {"dateTime": end, "timeZone": timezone},
-    }
-    created = calendar_service.events().insert(calendarId="primary", body=ev).execute()
-    return created.get("htmlLink", "✅ Event created")
+
