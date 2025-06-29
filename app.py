@@ -20,7 +20,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar.events.freebusy",
 ]
-REDIRECT_URI = "http://localhost:8501"
+REDIRECT_URI = st.secrets["REDIRECT_URI"]  # Ensure this is set in your Streamlit secrets
 TOKEN_DIR = "token_files"
 TOKEN_FILE = os.path.join(TOKEN_DIR, "token_google_calendar.json")
 
