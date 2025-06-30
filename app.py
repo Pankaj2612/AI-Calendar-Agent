@@ -20,6 +20,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar.events.freebusy",
 ]
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 REDIRECT_URI = st.secrets["REDIRECT_URI"]  # Ensure this is set in your Streamlit secrets
 TOKEN_DIR = "token_files"
 TOKEN_FILE = os.path.join(TOKEN_DIR, "token_google_calendar.json")
@@ -43,7 +44,7 @@ if not creds or not creds.valid:
             flow = Flow.from_client_secrets_file(
                 CLIENT_SECRET_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI
             )
-            flow.oauth2session._client._configuration['oauthlib_relax_token_scope'] = True
+           
             auth_url, _ = flow.authorization_url(
                 access_type="offline", prompt="consent"
             )
