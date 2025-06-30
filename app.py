@@ -43,6 +43,7 @@ if not creds or not creds.valid:
             flow = Flow.from_client_secrets_file(
                 CLIENT_SECRET_FILE, scopes=SCOPES, redirect_uri=REDIRECT_URI
             )
+            flow.oauth2session._client._configuration['oauthlib_relax_token_scope'] = True
             auth_url, _ = flow.authorization_url(
                 access_type="offline", prompt="consent"
             )
